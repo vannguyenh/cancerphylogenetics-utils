@@ -4,7 +4,7 @@ set -euo pipefail
 # --- Config (change if needed) ---
 IQTREE="${IQTREE:-$HOME/tools/build-iqtree3/iqtree3}"
 INPUT_DIR="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/true_haplotypes_dir"
-OUTPUT_DIR="$HOME//Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/iqtree3"
+OUTPUT_DIR="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/iqtree3"
 MODEL="${MODEL:-GT10+FO}"
 THREADS=1
 
