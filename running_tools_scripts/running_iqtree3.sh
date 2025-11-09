@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- Config (change if needed) ---
+# --- Tools & opts ---
 IQTREE="${IQTREE:-$HOME/tools/build-iqtree3/iqtree3}"
-INPUT_DIR="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/true_haplotypes_dir"
-OUTPUT_DIR="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/iqtree3"
 MODEL="${MODEL:-GT10+FO}"
 THREADS=1
 
+# --- Fixed base path to the input of simulation data ---
+ROOT="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy"
+
+SCEN="${1%/}"
+MODEL="${2:-$MODEL}"
+THREADS=1 #"{3:-$THREADS}"
+
+INPUT_DIR="$ROOT/$SCEN/true_haplotypes_dir"
+OUTPUT_DIR="$ROOT/$SCEN/iqtree3"
+
 # ---------------------------------
-# Validatee iqtree3
-if [[ ! -x "$IQTREE" ]]; then
-    echo "Error: iqtree3 not found at: $IQTREE" >$2
-    exit 1
-fi
+# Validatee iqtree3 and INPUT_DIR
+
+[[ -x "$IQTREE" ]] || { echo "Error: iqtree3 not found at $IQTREE" >&2; exit 1; }
+
+[[ -d "$INPUT_DIR" ]] || { echo "Error: INPUT_DIR not found: $INPUT_DIR" >&2; exit 1; }
+
+# Ensure output dir exists
+mkdir -p "$OUTPUT_DIR"
 
 shopt -s nullglob
 for f in "$INPUT_DIR"/true_hap.*; do
