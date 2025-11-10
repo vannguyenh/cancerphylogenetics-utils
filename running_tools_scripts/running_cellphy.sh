@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --- Config ---
+# --- Tools & opts ---
 CELLPHY="${CELLPHY:-$HOME/tools/cellphy-0.9.3/cellphy.sh}"
-INPUT_DIR="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/true_haplotypes_dir"
-OUTPUT_DIR="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/sim1/sim1.D0.00G0.00j250/cellphy0.9.3"
 MODEL="${MODEL:-GT10}"
 THREADS=1
 
+# --- Fixed base path to the input of simulation data ---
+ROOT="$HOME/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy"
+
+SCEN="${1%/}"
+MODEL="${2:-$MODEL}"
+THREADS=1 #"{3:-$THREADS}"
+
+INPUT_DIR="$ROOT/$SCEN/true_haplotypes_dir"
+OUTPUT_DIR="$ROOT/$SCEN/cellphy0.9.3"
+
 # ---------------------------------
-# Validatee cellphy-0.9.3
-if [[ ! -x "$CELLPHY" ]]; then
-    echo "Error: iqtree3 not found at: $CELLPHY" >$2
-    exit 1
-fi
+# Validatee iqtree3 and INPUT_DIR
+
+[[ -x "$CELLPHY" ]] || { echo "Error: cellphy not found at $CELLPHY" >&2; exit 1; }
+
+[[ -d "$INPUT_DIR" ]] || { echo "Error: INPUT_DIR not found: $INPUT_DIR" >&2; exit 1; }
+
+# Ensure output dir exists
+mkdir -p "$OUTPUT_DIR"
 
 shopt -s nullglob
 for f in "$INPUT_DIR"/true_hap.*; do
