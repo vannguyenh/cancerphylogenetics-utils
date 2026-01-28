@@ -77,6 +77,21 @@ class PhylogeneticBenchmark:
             print(f"Error reading {log_file}: {e}")
         return None
     
+    def extract_cellphy_runtime(self, log_file):
+        """ Extract runtime from CellPhz log file. """
+        try:
+            with open(log_file, 'r') as file:
+                content = file.read()
+                # Common patterns for runtime in RAxML-NG/ CellPhy logs
+                # "Elapsed time: X seconds"
+                pattern = r'Elapsed time:\s+([\d.]+)\s+seconds'
+                match = re.search(pattern, content)
+                if match:
+                    return float(match.group(1))
+        except Exception as e:
+            print(f"Error reading {log_file}: {e}")
+        return None
+        
     def extract_iqtree_likelihood(self, iqtree_log_file):
         """ Extract the log-likelihood from IQ-TREE log file. """
         try:
@@ -124,6 +139,21 @@ class PhylogeneticBenchmark:
                         
         except Exception as e:
             print(f"Error reading {iqtree_file}: {e}")
+        return None
+    
+    def extract_iqtree_runtime(self, iqtree_log_file):
+        """ Extract runtime from IQ-TREE log file. """
+        try:
+            with open(iqtree_log_file, 'r') as file:
+                content = file.read()
+                # Common patterns for runtime in IQ-TREE logs
+                # "Total wall-clock time used: X seconds"
+                pattern = r'Total wall-clock time used:\s+([\d.]+)\s*(?:seconds?|sec)'
+                match = re.search(pattern, content)
+                if match:
+                    return float(match.group(1))
+        except Exception as e:
+            print(f"Error reading {iqtree_log_file}: {e}")
         return None
     
     def calculate_frequency_distance(self, freq1, freq2):
@@ -187,12 +217,14 @@ class PhylogeneticBenchmark:
             # Extract data
             cellphy_logL = self.extract_cellphy_likelihood(cellphy_log)
             cellphy_freqs = self.extract_cellphy_frequencies(cellphy_log)
-            print(f'CellPhy frequencies: {cellphy_freqs}')
+            #print(f'CellPhy frequencies: {cellphy_freqs}')
+            cellphy_time = self.extract_cellphy_runtime(cellphy_log)
 
             iqtree_logL = self.extract_iqtree_likelihood(iqtree_log)
             iqtree_freqs = self.extract_iqtree_frequencies(iqtree_model)
-            print(f'IQ-TREE frequencies: {iqtree_freqs}')
-            
+            #print(f'IQ-TREE frequencies: {iqtree_freqs}')
+            iqtree_time = self.extract_iqtree_runtime(iqtree_log)
+
             # Calculate metrics
             delta_logL = None
             if cellphy_logL is not None and iqtree_logL is not None:
@@ -208,7 +240,9 @@ class PhylogeneticBenchmark:
                 'cellphy_logL': cellphy_logL,
                 'iqtree_logL': iqtree_logL,
                 'delta_logL': delta_logL,
-                'freq_distance': freq_distance
+                'freq_distance': freq_distance,
+                'cellphy_time': cellphy_time,
+                'iqtree_time': iqtree_time
             }
 
             # Add individual frequencies
@@ -221,21 +255,22 @@ class PhylogeneticBenchmark:
 
             self.results.append(result)
 
-    def process_all(self, sim_range=range(1, 101), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000']):
+    def process_all(self, sim_num, rep_range=range(1, 101), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000']):
         """
         Process all datasets
-        
-        :param sim_range: Simulation numbers to process (default: 1 to 100)
+
+        :param sim_num: Simulation numbers to process (default: ['sim1', 'sim2'])
+        :param rep_range: Replicate numbers to process (default: 1 to 100)
         :param subsamples: Subsample sizes to process
         """
-        total = len(sim_range) * len(subsamples)
+        total = len(rep_range) * len(subsamples)
         count = 0
 
-        for sim_num in sim_range:
+        for rep_num in rep_range:
             for subsample in subsamples:
                 count += 1
-                print(f"Processing {sim_num} {subsample} ({count}/{total})")
-                self.process_datasets(sim_num, subsample)
+                print(f"Processing {rep_num} {subsample} ({count}/{total})")
+                self.process_datasets(sim_num,subsample)
         print(f"\nTotal results extracted> {len(self.results)}")
 
     def get_dataframes(self):
@@ -253,6 +288,18 @@ class PhylogeneticBenchmark:
         """ Generate summary statistics for the results. """
         df = self.get_dataframes()
 
+        if len(df) == 0:
+            print("\n" + "="*60)
+            print("WARNING: No data was extracted!")
+            print("="*60)
+            print("\nPlease check:")
+            print("1. Base directory path is correct")
+            print("2. Directory structure matches expected format")
+            print("3. File naming conventions are correct")
+            print("\nRun with a single dataset first to debug:")
+            print("  benchmark.process_dataset(1, 'j250')")
+            return
+        
         print("\n" + "="*60)
         print("SUMMARY STATISTICS")
         print("="*60 + "\n")
@@ -289,7 +336,7 @@ class PhylogeneticBenchmark:
         ax = axes[0, 0]
         df['delta_logL'].hist(bins=50, ax=ax, edgecolor='black')
         ax.axvline(0, color='red', linestyle='--', linewidth=2)
-        ax.set_xlabel('ΔlogL (IQ-TREE - CellPhy)')
+        ax.set_xlabel('ΔlogL (CellPhy - IQ-TREE)')
         ax.set_ylabel('Frequency')
         ax.set_title('Distribution of Log-Likelihood Differences')
         
@@ -297,7 +344,7 @@ class PhylogeneticBenchmark:
         ax = axes[0, 1]
         df.boxplot(column='delta_logL', by='subsample', ax=ax)
         ax.set_xlabel('Subsample Size')
-        ax.set_ylabel('ΔlogL (IQ-TREE - CellPhy)')
+        ax.set_ylabel('ΔlogL (CellPhy - IQ-TREE)')
         ax.set_title('Log-Likelihood Differences by Subsample Size')
         plt.sca(ax)
         plt.xticks(rotation=0)
@@ -362,8 +409,8 @@ class PhylogeneticBenchmark:
             subset = df[df['subsample'] == subsample].sort_values('replicate')
 
             # Plot both methods
-            ax.plot(subset['replicated'], subset['cellphy_logL'], label='CellPhy', marker='o', alpha=0.7, linewidth=2)
-            ax.plot(subset['replicated'], subset['iqtree_logL'], label='IQ-TREE', marker='s', alpha=0.7, linewidth=2)
+            ax.plot(subset['replicate'], subset['cellphy_logL'], label='CellPhy', marker='o', alpha=0.7, linewidth=2)
+            ax.plot(subset['replicate'], subset['iqtree_logL'], label='IQ-TREE', marker='s', alpha=0.7, linewidth=2)
             ax.set_xlabel('Replicate Number')
             ax.set_ylabel('Log-Likelihood')
             ax.set_title(f'Log-Likelihood Comparison for Subsample: {subsample}')
@@ -385,6 +432,69 @@ class PhylogeneticBenchmark:
         plt.close()
         return output_path
 
+    def plot_runtime_comparison(self, filename_prefix="runtime_comparison.png"):
+        """ Generate bar plots comparing runtimes between methods (CellPhy vs IQ-TREE). """
+        df = self.get_dataframes()
+        
+        if len(df) == 0:
+            print("\n✗ Cannot generate runtime comparison plot: No data available!")
+            return
+        
+        # Ensure output_dir is set
+        if not hasattr(self, 'output_dir'):
+            self.output_dir = Path.cwd()
+            print(f"Warning: output_dir not set. Using current working directory: {self.output_dir}")
+
+        # Get unique subsamples
+        subsamples = sorted(df['subsample'].unique())
+        n_subsamples = len(subsamples)
+
+        # Create figure with subplots for each subsample
+        #fig, axes = plt.subplots(n_subsamples, 1, figsize=(14, 5 * n_subsamples))
+        fig, axes = plt.subplots(2, n_subsamples, figsize=(7 * n_subsamples, 10))
+
+        # If only one subsample, axes won't be listed
+        if n_subsamples == 1:
+            axes = axes.reshape(-1,1)
+
+        for idx, subsample in enumerate(subsamples):
+            subset = df[df['subsample'] == subsample].sort_values('replicate')
+
+            # Top row: Line Plot of runtime across replicates
+            ax = axes[0, idx]
+            ax.plot(subset['replicate'], subset['cellphy_time'], label='CellPhy', marker='o', alpha=0.7, linewidth=2)
+            ax.plot(subset['replicate'], subset['iqtree_time'], label='IQ-TREE', marker='s', alpha=0.7, linewidth=2)
+            ax.set_xlabel('Replicate Number')
+            ax.set_ylabel('Runtime (seconds)')
+            ax.set_title(f'Runtime Comparison for Subsample: {subsample}')
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+
+            # Bottom row: Box Plot of average runtime
+            ax = axes[1, idx]
+            runtime_data = [subset['cellphy_time'].dropna(), subset['iqtree_time'].dropna()]
+            bp = ax.boxplot(runtime_data, labels=['CellPhy', 'IQ-TREE'], patch_artist=True)
+            bp['boxes'][0].set_facecolor('lightblue')
+            bp['boxes'][1].set_facecolor('lightgreen')
+            ax.set_ylabel('Runtime (seconds)')
+            ax.set_title(f'Runtime Distribution for Subsample: {subsample}')
+            ax.grid(True, alpha=0.3, axis='y')
+
+        plt.tight_layout()
+        output_path = self.output_dir / filename_prefix
+        print(f"\nSaving runtime comparison plot to: {output_path.absolute()}")
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+
+        # Verify the file was created
+        if output_path.exists():
+            file_size = output_path.stat().st_size
+            print(f"✓ Runtime comparison plot saved successfully ({file_size:,} bytes)")
+        else:
+            print(f"✗ ERROR: Runtime comparison plot file was not created!")
+
+        plt.close()
+        return output_path
+
 if __name__ == "__main__":
     # set the base directory
     base_dir = "/Users/u7875558/Documents/promotion/projects/cancer_models/benchmark_gt10/simulation_data_CellPhy/"
@@ -400,19 +510,22 @@ if __name__ == "__main__":
     # Process all datasets (or specify a subset for testing)
     # For testing, try benchmark.process_datasets(1, 'D0.00G0.00j250')
     #benchmark.process_all(sim_range=range(1, 11), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000'])
-    benchmark.process_datasets('sim1', 'D0.00G0.00j250')
-    
+    #benchmark.process_datasets('sim1', 'D0.00G0.00j250')
+    benchmark.process_all(sim_num='sim1', rep_range=range(1, 101), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000'])
     # save results
-    benchmark.save_results("benchmark_results_gt10.csv")
+    benchmark.save_results("benchmark_results_gt10FO.csv")
     
     # generate summary statistics
     benchmark.generate_summary_stats()
     
     # generate plots
-    benchmark.plot_results(filename_prefix='benchmark_gt10_plots')
+    benchmark.plot_results(filename_prefix='benchmark_gt10FO_plots')
 
     # generate likelihood comparison plots
-    benchmark.plot_likelihood_comparison(filename_prefix='likelihood_comparison_gt10_sim1j250.png')
+    benchmark.plot_likelihood_comparison(filename_prefix='likelihood_comparison_gt10FO_sim1.png')
+
+    # generate runtime comparison plots
+    benchmark.plot_runtime_comparison(filename_prefix='runtime_comparison_gt10FO_sim1.png')
 
     # Access the DataFrame 
     df = benchmark.get_dataframes()
