@@ -510,22 +510,22 @@ if __name__ == "__main__":
     # Process all datasets (or specify a subset for testing)
     # For testing, try benchmark.process_datasets(1, 'D0.00G0.00j250')
     #benchmark.process_all(sim_range=range(1, 11), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000'])
-    #benchmark.process_datasets('sim1', 'D0.00G0.00j250')
-    benchmark.process_all(sim_num='sim1', rep_range=range(1, 101), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000'])
+    benchmark.process_datasets('sim2', 'D0.00G0.00')
+    #benchmark.process_all(sim_num='sim1', rep_range=range(1, 101), subsamples=['D0.00G0.00j250', 'D0.00G0.00j500', 'D0.00G0.00j1000'])
     # save results
-    benchmark.save_results("benchmark_results_gt10FO.csv")
+    benchmark.save_results("sim2_benchmark_results_gt10FO.csv")
     
     # generate summary statistics
     benchmark.generate_summary_stats()
     
     # generate plots
-    benchmark.plot_results(filename_prefix='benchmark_gt10FO_plots')
+    benchmark.plot_results(filename_prefix='sim2_benchmark_gt10FO_plots')
 
     # generate likelihood comparison plots
-    benchmark.plot_likelihood_comparison(filename_prefix='likelihood_comparison_gt10FO_sim1.png')
+    benchmark.plot_likelihood_comparison(filename_prefix='sim2_likelihood_comparison_gt10FO.png')
 
     # generate runtime comparison plots
-    benchmark.plot_runtime_comparison(filename_prefix='runtime_comparison_gt10FO_sim1.png')
+    benchmark.plot_runtime_comparison(filename_prefix='sim2_runtime_comparison_gt10FO.png')
 
     # Access the DataFrame 
     df = benchmark.get_dataframes()
