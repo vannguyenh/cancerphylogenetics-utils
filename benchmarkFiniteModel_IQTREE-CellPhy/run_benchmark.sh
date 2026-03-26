@@ -21,7 +21,8 @@ set -euo pipefail
 # ============================================================
 CELLCOAL="/Users/u7875558/tools/cellcoal/bin/cellcoal-1.2.0"
 IQTREE="/Users/u7875558/tools/build-iqtree3/iqtree3"
-CELLPHY="/Users/u7875558/tools/cellphy-0.9.3/cellphy.sh"
+CELLPHY="/Users/u7875558/tools/cellphy/cellphy.sh"
+GT16_MAP="/Users/u7875558/tools/cellphy/bin/GT16.map"
 
 # Working directory (where this script lives)
 BENCHMARK_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -94,14 +95,14 @@ if [[ "$START_STEP" == "step3" ]]; then
 
         for REP in $(seq 1 $NUM_REPS); do
             for SITES in snv full; do
-                # IQ-TREE GT16 encoding
+                # IQ-TREE GT16 encoding (M,R,W,S,Y,K for heterozygotes)
                 python3 convert_cellcoal_to_phylip.py \
                     --input_dir "$RESULTS_DIR" \
                     --replicate "$REP" \
                     --tool iqtree \
                     --sites "$SITES"
 
-                # CellPhy GT16 encoding
+                # CellPhy GT16 encoding (1,2,3,4,5,6 for heterozygotes)
                 python3 convert_cellcoal_to_phylip.py \
                     --input_dir "$RESULTS_DIR" \
                     --replicate "$REP" \
@@ -130,8 +131,13 @@ if [[ "$START_STEP" == "step4" ]]; then
 
             for SITES in snv full; do
                 # --- Input files ---
+                # IQ-TREE GT16: uses converted phylip with 16-symbol encoding
                 GT16_IQTREE="${RESULTS_DIR}/phylip_gt16_iqtree_${SITES}/rep${REP_FMT}_GT16_iqtree_${SITES}.phy"
+
+                # CellPhy GT16: uses converted phylip with CellPhy encoding + GT16.map
                 GT16_CELLPHY="${RESULTS_DIR}/phylip_gt16_cellphy_${SITES}/rep${REP_FMT}_GT16_cellphy_${SITES}.phy"
+
+                # GT10 (IQ-TREE only): uses snv_hap/full_hap directly (IUPAC encoded)
                 if [[ "$SITES" == "snv" ]]; then
                     # snv_hap files have a site indices line (line 2) that must
                     # be removed for PHYLIP compatibility
@@ -159,6 +165,7 @@ if [[ "$START_STEP" == "step4" ]]; then
                 if [[ ! -f "${IQTREE_GT16_PREFIX}.treefile" ]]; then
                     echo "IQ-TREE GT16 ($SITES): $SCENARIO rep $REP"
                     $IQTREE -s "$GT16_IQTREE" \
+                        --seqtype GT \
                         -m GT16+FO+E \
                         --prefix "$IQTREE_GT16_PREFIX" \
                         -nt 1 -quiet
@@ -169,18 +176,22 @@ if [[ "$START_STEP" == "step4" ]]; then
                 if [[ ! -f "${IQTREE_GT10_PREFIX}.treefile" ]]; then
                     echo "IQ-TREE GT10 ($SITES): $SCENARIO rep $REP"
                     $IQTREE -s "$GT10_INPUT" \
+                        --seqtype GT \
                         -m GT10+FO+E \
                         --prefix "$IQTREE_GT10_PREFIX" \
                         -nt 1 -quiet
                 fi
 
                 # --- CellPhy GT16 ---
+                # Use RAXML mode with +M{GT16.map} so raxml-ng knows the
+                # CellPhy 28-character GT16 encoding (1-6 for het, !@#$%&^ for rev-het)
                 CELLPHY_GT16_PREFIX="${CELLPHY_GT16_DIR}/rep${REP_FMT}"
                 if [[ ! -f "${CELLPHY_GT16_PREFIX}.raxml.bestTree" ]]; then
                     echo "CellPhy GT16 ($SITES): $SCENARIO rep $REP"
                     $CELLPHY RAXML --search \
                         --msa "$GT16_CELLPHY" \
-                        --model GT16+FO+E \
+                        --model "GT16+FO+E+M{${GT16_MAP}}" \
+                        --blopt nr_safe \
                         --prefix "$CELLPHY_GT16_PREFIX" \
                         --threads 1 > /dev/null 2>&1
                 fi
