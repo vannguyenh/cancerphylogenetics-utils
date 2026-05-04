@@ -126,6 +126,10 @@ if [[ "$START_STEP" == "step4" ]]; then
     for SCENARIO in "${SCENARIOS[@]}"; do
         RESULTS_DIR="results_${SCENARIO}"
 
+        # Parse true ADO/ERR from scenario name (e.g. S3_ADO0.00_ERR0.10)
+        TRUE_ADO=$(echo "$SCENARIO" | sed -E 's/.*ADO([0-9.]+)_.*/\1/')
+        TRUE_ERR=$(echo "$SCENARIO" | sed -E 's/.*ERR([0-9.]+)$/\1/')
+
         for REP in $(seq 1 $NUM_REPS); do
             REP_FMT=$(printf "%04d" "$REP")
 
@@ -179,6 +183,32 @@ if [[ "$START_STEP" == "step4" ]]; then
                         --seqtype GT \
                         -m GT10+FO+E \
                         --prefix "$IQTREE_GT10_PREFIX" \
+                        -nt 1 -quiet
+                fi
+
+                # --- IQ-TREE GT16 with FIXED true error params (diagnostic) ---
+                IQTREE_GT16_FIX_DIR="${RESULTS_DIR}/inference_iqtree_gt16_${SITES}_fixparams"
+                mkdir -p "$IQTREE_GT16_FIX_DIR"
+                IQTREE_GT16_FIX_PREFIX="${IQTREE_GT16_FIX_DIR}/rep${REP_FMT}"
+                if [[ ! -f "${IQTREE_GT16_FIX_PREFIX}.treefile" ]]; then
+                    echo "IQ-TREE GT16 fix ($SITES): $SCENARIO rep $REP  +E{$TRUE_ADO,$TRUE_ERR}"
+                    $IQTREE -s "$GT16_IQTREE" \
+                        --seqtype GT \
+                        -m "GT16+FO+E{${TRUE_ADO},${TRUE_ERR}}" \
+                        --prefix "$IQTREE_GT16_FIX_PREFIX" \
+                        -nt 1 -quiet
+                fi
+
+                # --- IQ-TREE GT10 with FIXED true error params (diagnostic) ---
+                IQTREE_GT10_FIX_DIR="${RESULTS_DIR}/inference_iqtree_gt10_${SITES}_fixparams"
+                mkdir -p "$IQTREE_GT10_FIX_DIR"
+                IQTREE_GT10_FIX_PREFIX="${IQTREE_GT10_FIX_DIR}/rep${REP_FMT}"
+                if [[ ! -f "${IQTREE_GT10_FIX_PREFIX}.treefile" ]]; then
+                    echo "IQ-TREE GT10 fix ($SITES): $SCENARIO rep $REP  +E{$TRUE_ADO,$TRUE_ERR}"
+                    $IQTREE -s "$GT10_INPUT" \
+                        --seqtype GT \
+                        -m "GT10+FO+E{${TRUE_ADO},${TRUE_ERR}}" \
+                        --prefix "$IQTREE_GT10_FIX_PREFIX" \
                         -nt 1 -quiet
                 fi
 
